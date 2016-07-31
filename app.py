@@ -1,55 +1,73 @@
 import os
 from flask import Flask, render_template, request, json,redirect, url_for, send_from_directory
-from werkzeug import secure_filename
-# from searchMethods import *
-
+import main
 
 app = Flask(__name__)
 
-#Upload Folder
-app.config['UPLOAD_FOLDER'] = 'uploads/'
-#To allow only Image Uploads
-app.config['ALLOWED_EXTENSIONS'] = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
 
-#Function to find the extension of an uploaded file
-def allowed_file(filename):
-	return '.' in filename and \
-		   filename.rsplit('.', 1)[1] in app.config['ALLOWED_EXTENSIONS']
-#Main Page
 @app.route('/')
 def searchpage():
 	return render_template('index.html')
 
-# #Handling Search Queries
-# @app.route('/search', methods=['POST'])
-# def searchresults():
-# 	searchQ =  request.form['searchq']
-# 	searchType=request.form['activeTab']
-# 	result=[]    
-# 	if searchType=="Search":
-# 		result=pagesearch(searchQ)
-# 	elif searchType=="Document":
-# 		result=docsearch(searchQ)     
-# 	elif searchType=="Image":
-# 		result=imgsearch(searchQ)  
-# 	return json.dumps({'status':'OK','search':result})
+
+@app.route('/load_ajax', methods=["GET", "POST"])
+def load_ajax():
+	if request.method == "POST":
+		data =  request.get_json()
+		fileNames = data['files']
+		fileNames = [str(i) for i in fileNames]
+		filedata = {}
+		for file in fileNames:
+			with open(file, 'r') as f:
+				filedata[file] = f.read()
+		main.x = fileNames
+		main.runass()
+		main.runlin()
+		symTable = main.getSymTable()
+		globTable = main.getGlobTable()
+		extTable = main.getExtTable()
+		pass1 = {}
+		pass2 = {}
+		iftable = main.getifTable()
+		# print 'lol'
+		# print iftable
+		for file in fileNames:
+			file = file.split('.')[0]
+			with open(file+'.l') as f:
+				pass1[file] = f.read()
+			with open(file+'.li') as f:
+				pass2[file] = f.read()
+		with open(fileNames[0].split('.')[0]+'.ls') as f:
+			lin = f.read()
+
+		return json.dumps({'status':'OK' ,'pass1':pass1, 'pass2':pass2, 'lin':lin, 'symTable':symTable, 'globTable':globTable, 'extTable':extTable , 'ifTable': iftable, 'filedata':filedata})
+
+@app.route('/loadSimulator', methods=["GET", "POST"])
+def loadSimulator():
+	if request.method == "POST":
+		data = request.get_json()
+		fileName = data['file']
+		print data
+		offset = data['offset']
+		main.runload(int(offset))
+		fileName = fileName+'.8085'
+		main.runloader(fileName, offset)
+		reg = main.getRegisters()
+		memory = main.getMemlocs()
+		stack = main.getStack()
+		print stack
+		return json.dumps({'status':'OK', 'reg':reg, 'memory':memory , 'stack':stack})
 
 
-# #Reverse Search Page
-# @app.route('/Reverse')
-# def index():
-# 	return render_template('Revimg.html')
-
-# #Handling Image Uploads
-# @app.route('/upload', methods=['POST'])
-# def upload():
-# 	file = request.files['file']
-# 	if file and allowed_file(file.filename):
-# 		filename = secure_filename(file.filename)
-# 		file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-# 		result=revimg(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-# 		os.remove(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-# 		return json.dumps({'status':'OK','search':result})
+@app.route('/runSimulator', methods=["GET", "POST"])
+def runSimulator():
+	if request.method == "POST":
+		main.runSimulator()
+		reg = main.getRegisters()
+		memory = main.getMemlocs()
+		stack = main.getStack()
+		print stack
+		return json.dumps({'status':'OK', 'reg':reg, 'memory':memory , 'stack':stack})
 
 if __name__=="__main__":
-	app.run(host='0.0.0.0')
+	app.run(host='0.0.0.0', debug=True)
